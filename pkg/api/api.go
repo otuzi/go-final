@@ -9,4 +9,5 @@ const DateFormat = "20060102"
 // Init регистрирует обработчики API на переданном маршрутизаторе.
 func Init(mux *http.ServeMux) {
 	mux.HandleFunc("/api/nextdate", nextDateHandler)
+	mux.HandleFunc("/api/task", taskHandler)
 }
