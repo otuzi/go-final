@@ -90,6 +90,31 @@ func UpdateTask(task *Task) error {
 	if err != nil {
 		return err
 	}
+	return checkAffected(res)
+}
+
+// UpdateDate меняет дату задачи с идентификатором id на next (формат 20060102).
+// Если задачи с таким идентификатором нет, возвращает ErrTaskNotFound.
+func UpdateDate(next string, id string) error {
+	res, err := db.Exec(`UPDATE scheduler SET date = ? WHERE id = ?`, next, id)
+	if err != nil {
+		return err
+	}
+	return checkAffected(res)
+}
+
+// DeleteTask удаляет задачу по идентификатору.
+// Если задачи с таким идентификатором нет, возвращает ErrTaskNotFound.
+func DeleteTask(id string) error {
+	res, err := db.Exec(`DELETE FROM scheduler WHERE id = ?`, id)
+	if err != nil {
+		return err
+	}
+	return checkAffected(res)
+}
+
+// checkAffected возвращает ErrTaskNotFound, если команда не затронула ни одной записи.
+func checkAffected(res sql.Result) error {
 	count, err := res.RowsAffected()
 	if err != nil {
 		return err

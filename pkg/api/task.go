@@ -17,6 +17,8 @@ func taskHandler(w http.ResponseWriter, r *http.Request) {
 		getTaskHandler(w, r)
 	case http.MethodPut:
 		updateTaskHandler(w, r)
+	case http.MethodDelete:
+		deleteTaskHandler(w, r)
 	default:
 		writeError(w, http.StatusMethodNotAllowed, "метод не поддерживается")
 	}
@@ -53,6 +55,21 @@ func updateTaskHandler(w http.ResponseWriter, r *http.Request) {
 
 	if err := db.UpdateTask(task); err != nil {
 		writeDBError(w, "ошибка обновления задачи", err)
+		return
+	}
+	writeJSON(w, http.StatusOK, struct{}{})
+}
+
+// deleteTaskHandler обрабатывает DELETE /api/task?id=<идентификатор>: удаляет задачу.
+// В ответ возвращает {} либо {"error":"<текст>"}.
+func deleteTaskHandler(w http.ResponseWriter, r *http.Request) {
+	id, err := parseID(r.FormValue("id"))
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := db.DeleteTask(id); err != nil {
+		writeDBError(w, "ошибка удаления задачи", err)
 		return
 	}
 	writeJSON(w, http.StatusOK, struct{}{})
