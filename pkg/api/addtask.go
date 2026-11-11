@@ -14,27 +14,34 @@ import (
 // addTaskHandler обрабатывает POST /api/task: добавляет задачу в базу данных.
 // В ответ возвращает {"id":"<число>"} либо {"error":"<текст>"}.
 func addTaskHandler(w http.ResponseWriter, r *http.Request) {
-	var task db.Task
-	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
-		writeError(w, http.StatusBadRequest, "ошибка разбора JSON: "+err.Error())
-		return
-	}
-
-	if task.Title == "" {
-		writeError(w, http.StatusBadRequest, "не указан заголовок задачи")
-		return
-	}
-	if err := checkDate(&task); err != nil {
+	task, err := decodeTask(r)
+	if err != nil {
 		writeError(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	id, err := db.AddTask(&task)
+	id, err := db.AddTask(task)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "ошибка добавления задачи: "+err.Error())
 		return
 	}
 	writeJSON(w, http.StatusCreated, map[string]string{"id": strconv.FormatInt(id, 10)})
+}
+
+// decodeTask читает задачу из JSON-тела запроса и проверяет её поля:
+// заголовок обязателен, дата и правило повторения должны быть корректны.
+func decodeTask(r *http.Request) (*db.Task, error) {
+	var task db.Task
+	if err := json.NewDecoder(r.Body).Decode(&task); err != nil {
+		return nil, errors.New("ошибка разбора JSON: " + err.Error())
+	}
+	if task.Title == "" {
+		return nil, errors.New("не указан заголовок задачи")
+	}
+	if err := checkDate(&task); err != nil {
+		return nil, err
+	}
+	return &task, nil
 }
 
 // checkDate проверяет и нормализует дату задачи:

@@ -1,5 +1,13 @@
 package db
 
+import (
+	"database/sql"
+	"errors"
+)
+
+// ErrTaskNotFound возвращается, если задачи с указанным идентификатором нет.
+var ErrTaskNotFound = errors.New("задача не найдена")
+
 // Task — задача планировщика. Используется и при работе с базой данных,
 // и при сериализации в JSON для API.
 type Task struct {
@@ -58,4 +66,36 @@ func selectTasks(query string, args ...any) ([]*Task, error) {
 		tasks = append(tasks, &t)
 	}
 	return tasks, rows.Err()
+}
+
+// GetTask возвращает задачу по идентификатору. Если задачи нет, возвращает ErrTaskNotFound.
+func GetTask(id string) (*Task, error) {
+	var t Task
+	err := db.QueryRow(`SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`, id).
+		Scan(&t.ID, &t.Date, &t.Title, &t.Comment, &t.Repeat)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrTaskNotFound
+	}
+	if err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// UpdateTask обновляет все поля задачи по task.ID.
+// Если задачи с таким идентификатором нет, возвращает ErrTaskNotFound.
+func UpdateTask(task *Task) error {
+	query := `UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`
+	res, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
+	if err != nil {
+		return err
+	}
+	count, err := res.RowsAffected()
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return ErrTaskNotFound
+	}
+	return nil
 }
