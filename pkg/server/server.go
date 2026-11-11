@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"os"
 	"strconv"
+
+	"github.com/otuzi/go-final/pkg/api"
 )
 
 const (
@@ -16,13 +18,15 @@ const (
 	webDir = "./web"
 )
 
-// Run запускает веб-сервер: отдаёт статические файлы фронтенда из директории web.
+// Run запускает веб-сервер: отдаёт статические файлы фронтенда из директории web
+// и регистрирует обработчики API.
 // Порт берётся из переменной окружения TODO_PORT, иначе используется 7540.
 func Run() error {
 	port := getPort()
 
 	mux := http.NewServeMux()
 	mux.Handle("/", http.FileServer(http.Dir(webDir)))
+	api.Init(mux)
 
 	addr := fmt.Sprintf(":%d", port)
 	log.Printf("сервер запущен на http://localhost%s", addr)
