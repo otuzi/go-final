@@ -35,5 +35,17 @@ services:
       db:
         condition: service_healthy
 
+  # Одноразовое заполнение планировщика демонстрационными задачами через API.
+  # Запуск: docker compose --profile seed run --rm seed
+  seed:
+    build: .
+    profiles: ["seed"]
+    environment:
+      TODO_ADDR: http://app:7540
+      TODO_PASSWORD: ${TODO_PASSWORD:-}
+    depends_on:
+      - app
+    command: ["/app/seed"]
+
 volumes:
   pgdata:

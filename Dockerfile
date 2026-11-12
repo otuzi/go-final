@@ -6,13 +6,15 @@ WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN CGO_ENABLED=0 GOOS=linux go build -o /todo .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /todo . \
+    && CGO_ENABLED=0 GOOS=linux go build -o /seed ./cmd/seed
 
 # Этап 2: минимальный образ для запуска.
 FROM ubuntu:latest
 
 WORKDIR /app
 COPY --from=build /todo /app/todo
+COPY --from=build /seed /app/seed
 COPY web /app/web
 
 # Переменные окружения, которые понимает сервер:
