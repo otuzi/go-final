@@ -19,19 +19,19 @@ type Task struct {
 }
 
 // AddTask добавляет задачу в таблицу scheduler и возвращает идентификатор записи.
+// RETURNING поддерживают и SQLite, и PostgreSQL, в отличие от LastInsertId.
 func AddTask(task *Task) (int64, error) {
-	query := `INSERT INTO scheduler (date, title, comment, repeat) VALUES (?, ?, ?, ?)`
-	res, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat)
-	if err != nil {
-		return 0, err
-	}
-	return res.LastInsertId()
+	var id int64
+	err := db.QueryRow(rebind(`INSERT INTO scheduler (date, title, comment, repeat)
+		VALUES (?, ?, ?, ?) RETURNING id`),
+		task.Date, task.Title, task.Comment, task.Repeat).Scan(&id)
+	return id, err
 }
 
 // Tasks возвращает до limit ближайших задач, отсортированных по дате.
 func Tasks(limit int) ([]*Task, error) {
 	return selectTasks(`SELECT id, date, title, comment, repeat FROM scheduler
-		ORDER BY date LIMIT ?`, limit)
+		ORDER BY date, id LIMIT ?`, limit)
 }
 
 // SearchTasks возвращает до limit задач, в заголовке или комментарии которых
@@ -39,7 +39,7 @@ func Tasks(limit int) ([]*Task, error) {
 func SearchTasks(search string, limit int) ([]*Task, error) {
 	pattern := "%" + search + "%"
 	return selectTasks(`SELECT id, date, title, comment, repeat FROM scheduler
-		WHERE title LIKE ? OR comment LIKE ? ORDER BY date LIMIT ?`, pattern, pattern, limit)
+		WHERE title LIKE ? OR comment LIKE ? ORDER BY date, id LIMIT ?`, pattern, pattern, limit)
 }
 
 // TasksByDate возвращает до limit задач на указанную дату в формате 20060102.
@@ -51,7 +51,7 @@ func TasksByDate(date string, limit int) ([]*Task, error) {
 // selectTasks выполняет запрос и сканирует строки результата в слайс задач.
 // При отсутствии записей возвращает пустой (не nil) слайс.
 func selectTasks(query string, args ...any) ([]*Task, error) {
-	rows, err := db.Query(query, args...)
+	rows, err := db.Query(rebind(query), args...)
 	if err != nil {
 		return nil, err
 	}
@@ -71,7 +71,7 @@ func selectTasks(query string, args ...any) ([]*Task, error) {
 // GetTask возвращает задачу по идентификатору. Если задачи нет, возвращает ErrTaskNotFound.
 func GetTask(id string) (*Task, error) {
 	var t Task
-	err := db.QueryRow(`SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`, id).
+	err := db.QueryRow(rebind(`SELECT id, date, title, comment, repeat FROM scheduler WHERE id = ?`), id).
 		Scan(&t.ID, &t.Date, &t.Title, &t.Comment, &t.Repeat)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrTaskNotFound
@@ -85,8 +85,8 @@ func GetTask(id string) (*Task, error) {
 // UpdateTask обновляет все поля задачи по task.ID.
 // Если задачи с таким идентификатором нет, возвращает ErrTaskNotFound.
 func UpdateTask(task *Task) error {
-	query := `UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ? WHERE id = ?`
-	res, err := db.Exec(query, task.Date, task.Title, task.Comment, task.Repeat, task.ID)
+	res, err := db.Exec(rebind(`UPDATE scheduler SET date = ?, title = ?, comment = ?, repeat = ?
+		WHERE id = ?`), task.Date, task.Title, task.Comment, task.Repeat, task.ID)
 	if err != nil {
 		return err
 	}
@@ -96,7 +96,7 @@ func UpdateTask(task *Task) error {
 // UpdateDate меняет дату задачи с идентификатором id на next (формат 20060102).
 // Если задачи с таким идентификатором нет, возвращает ErrTaskNotFound.
 func UpdateDate(next string, id string) error {
-	res, err := db.Exec(`UPDATE scheduler SET date = ? WHERE id = ?`, next, id)
+	res, err := db.Exec(rebind(`UPDATE scheduler SET date = ? WHERE id = ?`), next, id)
 	if err != nil {
 		return err
 	}
@@ -106,7 +106,7 @@ func UpdateDate(next string, id string) error {
 // DeleteTask удаляет задачу по идентификатору.
 // Если задачи с таким идентификатором нет, возвращает ErrTaskNotFound.
 func DeleteTask(id string) error {
-	res, err := db.Exec(`DELETE FROM scheduler WHERE id = ?`, id)
+	res, err := db.Exec(rebind(`DELETE FROM scheduler WHERE id = ?`), id)
 	if err != nil {
 		return err
 	}

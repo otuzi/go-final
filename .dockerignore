@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+*.db
+tests
+README.md
+Dockerfile
+.dockerignore
+.env
