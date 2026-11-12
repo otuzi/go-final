@@ -1,5 +1,4 @@
 # Этап 1: сборка статического бинарника.
-# Драйвер modernc.org/sqlite написан на чистом Go, поэтому CGO не нужен.
 FROM golang:1.24 AS build
 
 WORKDIR /src
